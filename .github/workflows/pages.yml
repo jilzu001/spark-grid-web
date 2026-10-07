@@ -1,0 +1,52 @@
+name: Build and deploy mobile web game
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify game logic and pixel conversion
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Isrc src/game.cpp tests/logic_tests.cpp -o /tmp/logic_tests
+          /tmp/logic_tests data/stage01.txt
+          node --check web/camera.js
+          node tests/pixel_tests.cjs
+      - name: Install official Emscripten SDK
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git /tmp/emsdk
+          /tmp/emsdk/emsdk install 3.1.74
+          /tmp/emsdk/emsdk activate 3.1.74
+      - name: Build WebAssembly
+        run: |
+          source /tmp/emsdk/emsdk_env.sh
+          emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=MinSizeRel
+          cmake --build build-web --parallel 2
+          mkdir -p public
+          cp build-web/index.html build-web/index.js build-web/index.wasm build-web/index.data public/
+          cp build-web/camera.js build-web/pixel.js build-web/FONT-LICENSE.txt public/
+          cp build-web/_deps/raylib-src/LICENSE public/raylib-LICENSE.txt
+          touch public/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

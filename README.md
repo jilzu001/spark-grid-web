@@ -1,2 +1,103 @@
-# spark-grid-web
-C++ / raylib action puzzle sample with mobile web controls and local photo pixel sprites.
+# Spark Grid
+
+모바일 웹 플레이: https://jilzu001.github.io/spark-grid-web/
+
+모바일 조작·카메라 캐릭터·웹 빌드 설명은 [WEB.md](WEB.md)를 참고하세요.
+
+C++17 + raylib 5.5로 만든 작은 Windows 탑다운 액션 퍼즐 샘플입니다. 독자적인 이름, 도형 그래픽, 맵을 사용합니다. 한글 타이틀/메뉴와 직접 합성한 음악·효과음이 있으며 외부 이미지·음악 파일이 필요하지 않습니다. 640×480 창, 32px 타일, 19×13 맵입니다.
+
+## 바로 실행
+
+검증된 Windows x64 실행파일: `dist/SparkGrid/SparkGrid.exe`
+
+EXE와 같은 폴더의 `data/stage01.txt`를 함께 유지하세요. 현재 작업 디렉터리와 관계없이 EXE 옆에서 맵을 읽습니다. 맵이 없거나 잘못되면 내장 맵으로 실행하고 화면에 알립니다. 시작 시 타이틀이 표시되며 게임 시작 / 플레이 방법 / 게임 종료를 선택할 수 있습니다.
+
+한글은 제공된 작은 data/ui.ttf를 먼저 사용하고, 없으면 Windows에 설치된 맑은 고딕을 읽습니다. `data/ui.ttf`에 한글을 지원하는 폰트를 직접 제공할 수도 있습니다. 사용할 폰트가 없으면 영어 UI로 실행합니다. `--english`로 영어를 강제할 수 있습니다.
+
+타이틀 멜로디와 메뉴/폭탄 설치/폭발/아이템 획득/사망/클리어 효과음은 시작 시 PCM을 합성해 한 번 로드합니다. M으로 소리를 끄거나 켭니다. 오디오 장치 초기화에 실패하면 무음으로 계속 실행합니다. `--no-audio`는 오디오 장치를 초기화하지 않습니다.
+
+## 필요한 프로그램
+
+- Windows 10/11 x64, OpenGL 3.3을 지원하는 그래픽 드라이버
+- Visual Studio 2022 또는 2026 / Build Tools: **C++를 사용한 데스크톱 개발**, Windows SDK, C++ CMake 도구
+- CMake 3.24 이상
+- 최초 빌드에는 인터넷 연결 필요: CMake가 고정된 raylib **5.5** 소스를 받아 정적 빌드합니다. 별도의 raylib 설치나 Git은 필요하지 않습니다.
+
+[raylib 공식 저장소](https://github.com/raysan5/raylib) · [라이선스](https://github.com/raysan5/raylib/blob/5.5/LICENSE)
+
+## 빌드 및 검증
+
+프로젝트 폴더에서 PowerShell로 실행합니다. 제공된 스크립트는 PATH에 CMake가 없으면 Visual Studio에 포함된 CMake를 찾습니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+.\build\Release\SparkGrid.exe
+```
+
+CMake를 직접 사용하는 경우:
+
+```powershell
+cmake -S . -B build -A x64
+cmake --build build --config Release --parallel
+ctest --test-dir build -C Release --output-on-failure
+.\build\Release\SparkGrid.exe
+```
+
+`-A x64`는 Visual Studio 생성기용입니다. 다른 생성기에서는 해당 옵션을 빼고 알맞은 C/C++ 컴파일러를 설정하세요. 이 샘플의 실제 검증 환경은 Windows/MSVC입니다.
+
+`SparkGrid.exe --smoke`는 실제 창에서 240프레임 동안 타이틀 → 도움말 → 게임 시작 → 폭탄 설치/사망 → 재시작 → 타이틀 복귀 → 음소거/해제 → 게임 재진입을 자동 확인합니다. `title.png`, `help.png`, `death.png`, `smoke.png`를 현재 작업 폴더에 저장하고 성공 시 종료 코드 0을 반환합니다. 표준 출력에는 첫 프레임 시간, 언어, 오디오 초기화, 검증 결과를 기록합니다. `--smoke --no-audio --english`로 무음/영어 경로를 검증할 수 있습니다. 일반 실행은 콘솔 창을 띄우지 않습니다.
+
+## 조작과 규칙
+
+| 키 | 동작 |
+|---|---|
+| 방향키 / WASD | 상하좌우 이동; 동시 입력은 가로 방향 우선 |
+| Space | 현재 타일에 폭탄 설치 |
+| R | 같은 스테이지의 초기 상태로 재시작 |
+| F1 | FPS, 활성 폭탄, 적 수, 플레이어 위치, 폭발 범위 표시 |
+| M | 소리 켜기/끄기 |
+| ESC | 게임/도움말에서 타이틀로 복귀; 타이틀에서 종료 |
+| 방향키 / Enter | 타이틀 메뉴 선택 / 확인; Space 확인도 가능 |
+| 마우스 클릭 | 타이틀 메뉴 선택 / 도움말 돌아가기 |
+
+초기 폭탄 제한 1개, 범위 2칸, 대기 2초입니다. 자신이 방금 설치한 폭탄에서는 빠져나갈 수 있지만, 떠난 뒤에는 폭탄이 이동을 막습니다. 폭발은 벽 앞에서 멈추고 블록 한 개를 부순 뒤 그 방향을 종료합니다. 닿은 다른 폭탄은 즉시 연쇄 폭발합니다. 폭발이나 적 접촉으로 사망하며 R로 다시 시작합니다.
+
+블록 파괴 시 기본 30% 확률로 아이템을 생성합니다. B는 폭탄 한도 +1, +는 폭발 범위 +1, S는 이동 속도 +0.4칸/초입니다. 적을 모두 제거하면 E 출구가 초록색이 됩니다. 출구에 도착하면 클리어됩니다.
+
+## 데이터와 프로젝트 구조
+
+```text
+CMakeLists.txt         raylib 다운로드 / 정적 빌드 / CTest
+build.ps1              Windows 빌드와 규칙 테스트
+src/main.cpp           타이틀/도움말/게임 전환, 입력, 기본 도형 렌더링, 디버그 HUD
+src/ui.h / ui.cpp      한글/영어 문구와 필요한 글자만 담는 폰트
+src/audio.h / audio.cpp PCM 합성, 타이틀/플레이 배경음, 게임 효과음, 음소거
+src/skins.h / skins.cpp 정상/사망 사진 텍스처와 기본 도형 대체
+web/                   모바일 화면, 터치 입력, 카메라 사진 도트 변환
+src/game.h             GameConfig 및 타일/플레이어/폭탄/적/아이템 데이터
+src/game.cpp           스테이지 읽기, 이동 충돌, 폭발, 적, 아이템, 상태 전환
+data/stage01.txt       교체 가능한 정수 타일맵과 시작 위치
+tests/logic_tests.cpp  그래픽 장치 없이 게임 규칙 검증
+VERIFICATION.md       실제 빌드 / 실행 결과와 측정 조건
+```
+
+작은 첫 버전이므로 게임 규칙은 한 구현 파일에 모았습니다. ECS, 리소스 매니저, 이벤트 프레임워크는 없습니다. 규칙 코드는 raylib에 의존하지 않으며 렌더링은 데이터만 읽습니다. 게임은 업데이트마다 작은 `GameEvents` 구조체로 효과음 발생 사실을 전달하고 오디오 코드가 이를 읽습니다. 메뉴 중에는 게임 시간이 진행하지 않습니다.
+
+`GameConfig`에서 `tileSize`, `playerSpeed`, `initialBombs`, `initialRange`, `bombTimer`, `explosionDuration`, `enemySpeed`, `itemDropRate`를 조정합니다. 좌표·속도는 타일 단위이고 시간은 초 단위입니다. 현재 화면 레이아웃은 타일 32px용입니다.
+
+스테이지 파일 형식:
+
+1. `19 13` — 고정 맵 크기
+2. 13행 × 19열의 정수: 0 바닥, 1 벽, 2 블록, 3 출구, 4 아이템
+3. `플레이어X 플레이어Y 적개수` — 좌표는 0부터 시작하는 타일 인덱스
+4. 적개수만큼 `적X 적Y` — 최대 8마리
+
+테두리는 모두 벽이어야 합니다. 시작 위치는 바닥/출구/아이템이어야 합니다. 데이터의 4는 기본 B 아이템이며, 블록 드롭은 `ItemType` enum의 세 종류 중 하나를 선택합니다. 데이터는 시작 때 한 번 읽고 R은 메모리에 보관한 원본으로 재시작합니다. 맵 파일을 수정하면 프로그램을 다시 실행하세요.
+
+## 경량화와 후속 작업
+
+폭탄 32개, 적 8마리, 타일 247개, 타일별 폭발 잔여 시간은 고정 배열입니다. 게임 업데이트 중 객체 생성/삭제와 파일 읽기를 하지 않습니다. 폰트와 여덟 가지 소리는 시작 시 한 번 준비하고 재사용합니다. 한글 폰트는 UI에 필요한 글자만 아틀라스에 담습니다. raylib와 MSVC 런타임은 정적 링크하며 오디오 모듈은 활성화했습니다.
+
+`GetFrameTime()`으로 시간을 진행하고, 충돌을 위해 최대 1/120초로 나누어 처리합니다. 일시 정지/창 이동 뒤 큰 시간 값은 0.25초로 제한합니다. 적은 칸 중앙에서 이동 가능한 다음 칸을 고르며, 막다른 길에서 되돌아갑니다. 길찾기는 없습니다.
+
+현재 규모에서는 추가 리팩터링이 필요하지 않습니다. 그래픽 교체 시 `main.cpp`의 `render()`를 `render.cpp`로 옮기고 시작 때 텍스처를 한 번 로드하면 됩니다. 소리를 파일로 교체하려면 `audio.cpp`의 합성 대신 시작 시 `LoadSound()`를 호출하면 됩니다. 한글 문구를 추가할 때는 `ui.cpp`의 문구 배열에 넣어 폰트 글자 목록에도 포함되게 하세요. 콘텐츠가 늘어나면 그때 맵 읽기와 폭탄 로직을 분리하는 것이 적절합니다.
