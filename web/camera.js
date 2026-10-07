@@ -2,6 +2,27 @@
 let runtimeReady=false;
 const photoBytes=Array(18).fill(null), photoUrls=Array(18).fill(null), photoGeneration=Array(18).fill(0);
 const heldPointers=new Map();
+let joyPointer=null,joyAction=null;
+const joystick=document.getElementById('joystick'),joyKnob=document.getElementById('joy-knob');
+function releaseJoystick(){
+  if(joyAction!==null)invoke('WebAction',[joyAction,0]);
+  joyAction=null;joyPointer=null;joyKnob.style.transform='';
+}
+function steerJoystick(event){
+  const rect=joystick.getBoundingClientRect(),dx=event.clientX-(rect.left+rect.width/2),dy=event.clientY-(rect.top+rect.height/2);
+  const length=Math.hypot(dx,dy),scale=length>40?40/length:1;
+  joyKnob.style.transform='translate('+dx*scale+'px,'+dy*scale+'px)';
+  const action=length<12?null:Math.abs(dx)>Math.abs(dy)?(dx>0?1:0):(dy>0?3:2);
+  if(action===joyAction)return;
+  if(joyAction!==null)invoke('WebAction',[joyAction,0]);
+  joyAction=action;if(action!==null)invoke('WebAction',[action,1]);
+}
+joystick.addEventListener('pointerdown',event=>{
+  if(!runtimeReady||joyPointer!==null)return;
+  event.preventDefault();joyPointer=event.pointerId;joystick.setPointerCapture(event.pointerId);invoke('WebAudioStart');steerJoystick(event);
+});
+joystick.addEventListener('pointermove',event=>{if(event.pointerId===joyPointer)steerJoystick(event);});
+for(const type of ['pointerup','pointercancel','lostpointercapture'])joystick.addEventListener(type,event=>{if(event.pointerId===joyPointer)releaseJoystick();});
 const statusLine=document.getElementById('status');
 const gameCanvas=document.getElementById('canvas');
 let currentScreen='title';
@@ -85,6 +106,7 @@ var Module={
   onGameClosed(){releaseAll();runtimeReady=false;document.querySelectorAll('[data-action]').forEach(button=>button.disabled=true);say('게임을 종료했습니다. 다시 실행하려면 새로고침하세요.');}
 };
 function releaseAll(){
+  releaseJoystick();
   for(const action of new Set(heldPointers.values()))invoke('WebAction',[action,0]);
   heldPointers.clear();
 }
