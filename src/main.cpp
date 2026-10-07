@@ -15,6 +15,7 @@
 
 static bool touchHeld[10]{}, touchPressed[10]{};
 static bool photoEditing = false;
+static int webNavigation = -1;
 #ifdef __EMSCRIPTEN__
 static Skins *browserSkins = nullptr;
 static Audio *browserAudio = nullptr;
@@ -35,6 +36,9 @@ extern "C" EMSCRIPTEN_KEEPALIVE void WebAction(int action, int down) {
     touchHeld[action] = down != 0;
 }
 extern "C" EMSCRIPTEN_KEEPALIVE void WebPhotoEditing(int enabled) { photoEditing = enabled != 0; }
+extern "C" EMSCRIPTEN_KEEPALIVE void WebNavigate(int destination) {
+    if (destination == 0 || destination == 1) webNavigation = destination;
+}
 extern "C" EMSCRIPTEN_KEEPALIVE int ApplyPhotoSkin(int actor) {
     if (!browserSkins || actor < 0 || actor >= Skins::SlotCount)
         return 0;
@@ -241,6 +245,16 @@ struct App {
     }
     void frame() {
         if (quit) return;
+#ifdef __EMSCRIPTEN__
+        const Screen previousScreen = screen;
+        if (webNavigation >= 0) {
+            if (webNavigation == 1) { g.restart(); screen = Screen::Playing; }
+            else screen = Screen::Title;
+            photoEditing = false;
+            webNavigation = -1;
+            audio.play(Cue::Menu);
+        }
+#endif
 #ifndef __EMSCRIPTEN__
         // raylib 5.5's web WindowShouldClose sleeps for synchronous loops.
         // Our web callback already yields to the browser between frames.
@@ -333,6 +347,11 @@ struct App {
                 }
             }
         }
+#ifdef __EMSCRIPTEN__
+        if (screen != previousScreen)
+            EM_ASM({ if (Module.onWebScreen) Module.onWebScreen($0); },
+                   screen == Screen::Playing ? 1 : 0);
+#endif
         audio.music(screen != Screen::Playing   ? BackgroundMusic::Title
                     : g.phase == Phase::Playing ? BackgroundMusic::Gameplay
                                                 : BackgroundMusic::None);

@@ -4,6 +4,34 @@ const photoBytes=Array(18).fill(null), photoUrls=Array(18).fill(null), photoGene
 const heldPointers=new Map();
 const statusLine=document.getElementById('status');
 const gameCanvas=document.getElementById('canvas');
+let currentScreen='title';
+function showScreen(screen){
+  releaseAll();currentScreen=screen;document.body.dataset.screen=screen;
+  for(const name of ['title','help','character','game','pause'])document.getElementById(name+'-screen').hidden=!(name===(screen==='playing'||screen==='paused'?'game':screen)||name==='pause'&&screen==='paused');
+  invoke('WebPhotoEditing',[screen==='character'||screen==='paused'?1:0]);
+  say('');window.scrollTo(0,0);
+  if(screen==='playing')gameCanvas.focus();
+}
+document.getElementById('start-game').addEventListener('click',()=>{invoke('WebAudioStart');invoke('WebNavigate',[1]);});
+document.getElementById('open-characters').addEventListener('click',()=>showScreen('character'));
+document.getElementById('open-help').addEventListener('click',()=>showScreen('help'));
+document.querySelectorAll('[data-back]').forEach(button=>button.addEventListener('click',()=>showScreen('title')));
+function pulse(action){invoke('WebAction',[action,1]);invoke('WebAction',[action,0]);}
+document.getElementById('pause-game').addEventListener('click',()=>showScreen('paused'));
+document.getElementById('resume-game').addEventListener('click',()=>showScreen('playing'));
+document.getElementById('toggle-sound').addEventListener('click',()=>pulse(8));
+document.getElementById('restart-game').addEventListener('click',()=>{pulse(6);showScreen('playing');});
+document.getElementById('leave-game').addEventListener('click',()=>invoke('WebNavigate',[0]));
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&(currentScreen==='playing'||currentScreen==='paused')){
+    event.preventDefault();event.stopImmediatePropagation();showScreen(currentScreen==='paused'?'playing':'paused');return;
+  }
+  if(currentScreen==='help'||currentScreen==='character'||currentScreen==='paused'){
+    if(event.target.matches('input'))return;
+    event.stopImmediatePropagation();
+    if(event.key==='Escape'){event.preventDefault();showScreen('title');}
+  }
+},true);
 function addImageCard(host,title,slot,filename){
   const card=document.createElement('section');card.className='skin';
   const heading=document.createElement('h2');heading.textContent=title;card.append(heading);
@@ -45,12 +73,14 @@ var Module={
   onRuntimeInitialized(){
     runtimeReady=true;
     document.querySelectorAll('[data-action]').forEach(button=>button.disabled=false);
-    say('준비 완료. 방향키로 선택하고 확인을 누르세요.');
+    document.getElementById('start-game').disabled=false;
+    say('');
     // Emscripten calls this before C++ main; apply queued photos after its first frame.
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      try{photoBytes.forEach((bytes,i)=>{if(bytes)applyPhoto(i);});invoke('WebPhotoEditing',[document.querySelector('details').open?1:0]);}catch(error){say(error.message);}
+      try{photoBytes.forEach((bytes,i)=>{if(bytes)applyPhoto(i);});invoke('WebPhotoEditing',[currentScreen==='character'?1:0]);}catch(error){say(error.message);}
     }));
   },
+  onWebScreen(screen){showScreen(screen===1?'playing':'title');},
   onAbort(){runtimeReady=false;say('게임을 불러오지 못했습니다. 새로고침하거나 연결을 확인하세요.');},
   onGameClosed(){releaseAll();runtimeReady=false;document.querySelectorAll('[data-action]').forEach(button=>button.disabled=true);say('게임을 종료했습니다. 다시 실행하려면 새로고침하세요.');}
 };
@@ -78,7 +108,6 @@ gameCanvas.addEventListener('pointerdown',()=>{invoke('WebAudioStart');gameCanva
 document.addEventListener('keydown',()=>invoke('WebAudioStart'));
 window.addEventListener('blur',releaseAll);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseAll();});
-document.querySelector('details').addEventListener('toggle',event=>{releaseAll();invoke('WebPhotoEditing',[event.target.open?1:0]);});
 function loadImage(file){
   return new Promise((resolve,reject)=>{
     const url=URL.createObjectURL(file),image=new Image();
@@ -120,3 +149,4 @@ document.addEventListener('change',async event=>{
   }catch(error){if(generation===photoGeneration[actor])say(error.message);}
   finally{input.value='';}
 });
+
