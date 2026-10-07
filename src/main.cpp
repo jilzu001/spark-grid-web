@@ -240,10 +240,15 @@ struct App {
         return true;
     }
     void frame() {
-        if (quit || WindowShouldClose()) {
+        if (quit) return;
+#ifndef __EMSCRIPTEN__
+        // raylib 5.5's web WindowShouldClose sleeps for synchronous loops.
+        // Our web callback already yields to the browser between frames.
+        if (WindowShouldClose()) {
             quit = true;
             return;
         }
+#endif
         bool up = IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W) || touchPressed[2];
         bool down = IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S) || touchPressed[3];
         bool confirm = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || touchPressed[4] ||
@@ -423,3 +428,4 @@ int main(int argc, char **argv) {
     return result;
 #endif
 }
+
