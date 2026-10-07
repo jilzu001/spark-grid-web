@@ -19,10 +19,11 @@
 <section id="character-screen" class="panel" hidden aria-label="캐릭터 만들기"><div class="panel-head"><h2>캐릭터 만들기</h2><button data-back>완료 · 타이틀로</button></div>
 <p>얼굴을 가운데에 두고 촬영하세요. 중앙을 정사각형으로 잘라 <b>32×32픽셀 · 32색 PNG</b>로 바꿉니다.</p><div class="skins" id="player-skins"></div><h2>적 이미지 세트</h2><p>각 적에 정상·사망 이미지 2장을 지정하세요.</p><div class="skins" id="enemy-skins"></div><button id="add-enemy-set">적 이미지 세트 추가</button><p><small>사진은 브라우저 안에서만 처리됩니다. 새로고침하면 초기화됩니다. 카메라가 열리지 않으면 사진 선택을 사용하세요.</small></p>
 </section>
-<section id="game-screen" hidden aria-label="게임 화면"><div id="hud" class="hud" aria-label="게임 상태">폭탄 0/1 · 범위 2 · 적 3</div><div class="play"><canvas id="canvas" width="640" height="432" tabindex="0" aria-label="스파크 그리드 게임"></canvas><div class="control-side"><div class="controls"><button id="joystick" class="joystick" aria-label="방향 조이스틱"><span class="joy-guide" aria-hidden="true">▲<br>◀　▶<br>▼</span><span id="joy-knob" aria-hidden="true"></span></button><div class="actions"><button disabled class="bomb" data-action="4">폭탄</button></div></div><div class="utility"><button disabled data-action="6">재시작</button><button id="pause-game">멈춤</button></div></div></div></section>
+<section id="game-screen" hidden aria-label="게임 화면"><div id="hud" class="hud" aria-label="게임 상태">폭탄 0/1 · 범위 2 · 적 3</div><div class="play"><canvas id="canvas" width="640" height="432" tabindex="0" aria-label="스파크 그리드 게임"></canvas><div class="control-side"><div class="controls"><button id="joystick" class="joystick" aria-label="방향 조이스틱"><span class="joy-guide" aria-hidden="true">▲<br>◀　▶<br>▼</span><span id="joy-knob" aria-hidden="true"></span></button><div class="actions"><button disabled class="bomb" data-action="4">폭탄</button></div></div><div class="utility"><button id="pause-game">멈춤</button></div></div></div></section>
 <section id="pause-screen" class="pause-overlay" hidden aria-label="일시정지 설정"><div class="pause-card"><h2>일시정지</h2><nav class="menu"><button class="primary" id="resume-game">계속하기</button><button id="toggle-sound">소리 켜기 / 끄기</button><button id="restart-game">처음부터 다시</button><button id="leave-game">타이틀로</button></nav><p><small>PC: Esc 계속하기 · F1 디버그</small></p></div></section><div id="status" role="status" aria-live="polite">게임 파일을 불러오는 중입니다.</div>
 <script src="pixel.js"></script><script src="camera.js"></script>{{{ SCRIPT }}}
 </main></body></html>
+
 
 
 
