@@ -48,6 +48,16 @@ document.getElementById('next-stage').addEventListener('click',()=>invoke('WebNa
 document.getElementById('retry-stage').addEventListener('click',()=>pulse(6));
 document.getElementById('result-title-back').addEventListener('click',()=>invoke('WebNavigate',[0]));
 document.addEventListener('keydown',event=>{
+  if(currentScreen==='title'&&event.key==='Enter'){
+    event.stopImmediatePropagation();
+    if(!event.target.closest('button')){event.preventDefault();document.getElementById('start-game').click();}
+    return;
+  }
+  if(currentScreen==='title'&&['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(event.key)){
+    event.stopImmediatePropagation();
+    if(!event.target.closest('button'))event.preventDefault();
+    return;
+  }
   if(event.key==='Escape'&&(currentScreen==='playing'||currentScreen==='paused')){
     event.preventDefault();event.stopImmediatePropagation();showScreen(currentScreen==='paused'?'playing':'paused');return;
   }
