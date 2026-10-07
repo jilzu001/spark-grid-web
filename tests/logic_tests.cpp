@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <filesystem>
+#include <queue>
 #include <stdexcept>
 
 static void check(bool value, const char *message) {
@@ -32,6 +34,32 @@ int main(int argc, char **argv) {
             check(loadStage(argv[1], loaded, error), "stage file loading");
             check(loaded.enemyCount == 3 && loaded.tiles[11 * MapW + 17] == Tile::Exit,
                   "stage data values");
+            const int counts[10]={1,1,2,2,3,3,4,5,6,8};
+            for(int level=1;level<=10;++level){
+                char name[32];std::snprintf(name,sizeof(name),"stage%02d.txt",level);
+                Stage campaign;
+                const auto path=std::filesystem::path(argv[1]).parent_path()/"mobile"/name;
+                check(loadStage(path.string(),campaign,error),"campaign stage loads");
+                check(campaign.enemyCount==counts[level-1],"campaign enemy progression");
+                std::array<bool,Cells> visited{};std::queue<int> pending;
+                pending.push(MapW+1);visited[MapW+1]=true;
+                while(!pending.empty()){
+                    const int k=pending.front();pending.pop();
+                    for(int next:{k-1,k+1,k-MapW,k+MapW}){
+                        if(next<0||next>=Cells||visited[next]||campaign.tiles[next]==Tile::Wall)continue;
+                        visited[next]=true;pending.push(next);
+                    }
+                }
+                check(visited[11*MapW+9],"campaign exit reachable after breaking blocks");
+                for(int i=0;i<campaign.enemyCount;++i)
+                    check(visited[int(campaign.enemies[i].y)*MapW+int(campaign.enemies[i].x)],"all enemies reachable");
+                Game campaignGame(campaign);
+                check(campaignGame.canStand(2.5f,1.5f,true)&&campaignGame.canStand(1.5f,2.5f,true),"safe spawn exits");
+                for(auto &enemy:campaignGame.stage.enemies)enemy.alive=false;
+                campaignGame.player.x=9.5f;campaignGame.player.y=11.5f;
+                campaignGame.damageAndCollect();
+                check(campaignGame.phase==Phase::Won,"every campaign stage can finish");
+            }
         }
         Game g(arena());
         tick(g, .1f, {1, 0, false});
@@ -139,28 +167,17 @@ int main(int argc, char **argv) {
         patrol.bombs[0].active = false;
         tick(patrol, .25f);
         check(patrol.stage.enemies[0].x > 5.9f, "enemy resumes when passage reopens");
-        Game grid(arena());
-        grid.update(.01f, {1, 0, false, true});
-        check(grid.player.x > 1.5f && grid.player.x < 2.5f, "tile step is animated");
-        tick(grid, .8f);
-        check(grid.player.x == 2.5f && grid.player.y == 1.5f && !grid.player.moving,
-              "tap and release completes exactly one tile");
-        tick(grid, .8f);
-        check(grid.player.x == 2.5f, "released movement does not repeat");
-        grid.update(.01f, {1, 0, false, true});
-        grid.update(.01f, {0, 1, false, true});
-        tick(grid, .8f);
-        check(grid.player.x == 3.5f && grid.player.y == 2.5f,
-              "queued turn starts only at tile centre");
-        grid.stage.tiles[3 * MapW + 3] = Tile::Block;
-        tick(grid, .4f, {0, 1, false});
-        check(grid.player.y == 2.5f, "blocked tile never starts partial movement");
-        tick(grid, .4f, {1, 0, false});
-        tick(grid, .4f);
-        check(grid.player.x == 5.5f, "held direction repeats complete tiles");
-        grid.restart();
-        check(grid.player.x == 1.5f && !grid.player.moving && grid.player.queuedDy == 0,
-              "restart clears tile movement and queued turn");
+        Game continuous(arena());
+        continuous.update(.05f, {1, 0, false});
+        const float releasedX = continuous.player.x;
+        check(releasedX > 1.5f && releasedX < 2.5f, "continuous movement can stop between centres");
+        tick(continuous, .8f);
+        check(continuous.player.x == releasedX, "release stops immediately without completing tile");
+        Game corner(arena());
+        corner.stage.tiles[2 * MapW + 2] = Tile::Wall;
+        corner.player.x = 1.81f;
+        tick(corner, .4f, {0, 1, false});
+        check(corner.player.y > 2 && corner.player.x < 1.81f, "player corner alignment correction");
         Game cues(arena());
         cues.update(.016f, {0, 0, true});
         check(cues.events.placed == 1, "placement audio event");

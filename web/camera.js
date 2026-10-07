@@ -28,6 +28,7 @@ const gameCanvas=document.getElementById('canvas');
 let currentScreen='title';
 function showScreen(screen){
   releaseAll();currentScreen=screen;document.body.dataset.screen=screen;
+  document.getElementById('result-screen').hidden=true;
   for(const name of ['title','help','character','game','pause'])document.getElementById(name+'-screen').hidden=!(name===(screen==='playing'||screen==='paused'?'game':screen)||name==='pause'&&screen==='paused');
   invoke('WebPhotoEditing',[screen==='character'||screen==='paused'?1:0]);
   say('');window.scrollTo(0,0);
@@ -43,6 +44,9 @@ document.getElementById('resume-game').addEventListener('click',()=>showScreen('
 document.getElementById('toggle-sound').addEventListener('click',()=>pulse(8));
 document.getElementById('restart-game').addEventListener('click',()=>{pulse(6);showScreen('playing');});
 document.getElementById('leave-game').addEventListener('click',()=>invoke('WebNavigate',[0]));
+document.getElementById('next-stage').addEventListener('click',()=>invoke('WebNavigate',[3]));
+document.getElementById('retry-stage').addEventListener('click',()=>pulse(6));
+document.getElementById('result-title-back').addEventListener('click',()=>invoke('WebNavigate',[0]));
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&(currentScreen==='playing'||currentScreen==='paused')){
     event.preventDefault();event.stopImmediatePropagation();showScreen(currentScreen==='paused'?'playing':'paused');return;
@@ -102,10 +106,13 @@ var Module={
     }));
   },
   onWebScreen(screen){showScreen(screen===1?'playing':'title');},
-  onHud(bombs,maxBombs,range,enemies,muted){
-    document.getElementById('hud').textContent='폭탄 '+bombs+'/'+maxBombs+' · 범위 '+range+' · 적 '+enemies;
+  onHud(bombs,maxBombs,range,enemies,muted,stage,phase){
+    document.getElementById('hud').textContent=stage+'/10 · 폭탄 '+bombs+'/'+maxBombs+' · 범위 '+range+' · 적 '+enemies;
     document.getElementById('toggle-sound').textContent=muted?'소리: 꺼짐':'소리: 켜짐';
     gameCanvas.style.setProperty('--game-ratio',gameCanvas.width/gameCanvas.height);
+    document.getElementById('result-screen').hidden=currentScreen!=='playing'||phase===0;
+    document.getElementById('result-title').textContent=phase===1?'다시 도전해 보세요':stage===10?'10개 스테이지 모두 클리어!':stage+' 스테이지 클리어!';
+    document.getElementById('next-stage').hidden=phase!==2||stage===10;
   },
   onAbort(){runtimeReady=false;say('게임을 불러오지 못했습니다. 새로고침하거나 연결을 확인하세요.');},
   onGameClosed(){releaseAll();runtimeReady=false;document.querySelectorAll('[data-action]').forEach(button=>button.disabled=true);say('게임을 종료했습니다. 다시 실행하려면 새로고침하세요.');}
@@ -176,5 +183,4 @@ document.addEventListener('change',async event=>{
   }catch(error){if(generation===photoGeneration[actor])say(error.message);}
   finally{input.value='';}
 });
-
 

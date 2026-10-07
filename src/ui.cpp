@@ -110,6 +110,6 @@ void Ui::draw(const char *text, int x, int y, int size, Color color) const {
     DrawTextEx(font, text, {float(x), float(y)}, float(size), korean ? 0.5f : 1.f, color);
 }
 void Ui::center(const char *text, int y, int size, Color color) const {
-    int x = int((640 - MeasureTextEx(font, text, float(size), korean ? 0.5f : 1.f).x) / 2);
+    int x = int((GetScreenWidth() - MeasureTextEx(font, text, float(size), korean ? 0.5f : 1.f).x) / 2);
     draw(text, x, y, size, color);
 }

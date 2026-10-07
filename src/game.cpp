@@ -93,8 +93,6 @@ void Game::restart() {
     player = Player{};
     player.x = stage.spawnX;
     player.y = stage.spawnY;
-    player.targetX = int(player.x);
-    player.targetY = int(player.y);
     player.speed = config.playerSpeed;
     player.maxBombs = config.initialBombs;
     player.range = config.initialRange;
@@ -319,44 +317,24 @@ void Game::moveEnemy(Enemy &e, float dt) {
     }
 }
 void Game::movePlayer(int dx, int dy, float dt) {
-    if (!player.moving) {
-        if (player.queuedDx || player.queuedDy) {
-            dx = player.queuedDx;
-            dy = player.queuedDy;
-            player.queuedDx = player.queuedDy = 0;
-        }
-        dx = (dx > 0) - (dx < 0);
-        dy = dx ? 0 : (dy > 0) - (dy < 0);
-        if (!dx && !dy) return;
-        const int tx = int(player.x) + dx, ty = int(player.y) + dy;
-        if (!canStand(tx + .5f, ty + .5f, true)) return;
-        player.targetX = tx;
-        player.targetY = ty;
-        player.moving = true;
+    const float distance = player.speed * dt;
+    const float nx = player.x + dx * distance, ny = player.y + dy * distance;
+    if (canStand(nx, ny, true)) {
+        player.x = nx;
+        player.y = ny;
+        return;
     }
-    // Complete the accepted tile even after release; turn only at its centre.
-    const float tx = player.targetX + .5f, ty = player.targetY + .5f;
-    const float distance = std::abs(tx - player.x) + std::abs(ty - player.y);
-    const float travel = std::min(std::max(0.f, player.speed) * dt, distance);
-    const float nx = player.x + (tx > player.x ? travel : tx < player.x ? -travel : 0);
-    const float ny = player.y + (ty > player.y ? travel : ty < player.y ? -travel : 0);
-    if (!canStand(nx, ny, true)) return;
-    player.x = nx;
-    player.y = ny;
-    if (travel >= distance) {
-        player.x = tx;
-        player.y = ty;
-        player.moving = false;
-    }
+    const float cx = int(player.x) + .5f, cy = int(player.y) + .5f;
+    const float offset = dx != 0 ? cy - player.y : cx - player.x;
+    if ((dx == 0 && dy == 0) || std::abs(offset) > .35f || !canStand(cx + dx, cy + dy, true))
+        return;
+    const float correction = std::clamp(offset, -distance, distance);
+    move(player, dx != 0 ? 0 : correction, dx != 0 ? correction : 0, true);
 }
 void Game::update(float dt, Input input) {
     events = {};
     if (phase != Phase::Playing)
         return;
-    if (input.movePressed) {
-        player.queuedDx = input.dx;
-        player.queuedDy = input.dx ? 0 : input.dy;
-    }
     // Substeps preserve collision and timer behavior across long frames.
     if (input.bomb)
         placeBomb();

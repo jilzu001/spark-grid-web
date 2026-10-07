@@ -37,7 +37,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void WebAction(int action, int down) {
 }
 extern "C" EMSCRIPTEN_KEEPALIVE void WebPhotoEditing(int enabled) { photoEditing = enabled != 0; }
 extern "C" EMSCRIPTEN_KEEPALIVE void WebNavigate(int destination) {
-    if (destination >= 0 && destination <= 2) webNavigation = destination;
+    if (destination >= 0 && destination <= 3) webNavigation = destination;
 }
 extern "C" EMSCRIPTEN_KEEPALIVE int ApplyPhotoSkin(int actor) {
     if (!browserSkins || actor < 0 || actor >= Skins::SlotCount)
@@ -166,12 +166,14 @@ static void render(const Game &g, const Ui &ui, const Skins &skins, bool debug,
                     340, 62 + i * 19, 12, GREEN);
         }
     }
+#ifndef __EMSCRIPTEN__
     if (g.phase != Phase::Playing) {
         DrawRectangle(20, 188, GetScreenWidth()-40, 112, {11, 16, 24, 240});
         ui.center(ui.label(g.phase == Phase::Dead ? Label::Dead : Label::Won), 207, 30,
                   g.phase == Phase::Dead ? Color{255, 130, 120, 255} : LIME);
         ui.center(ui.label(Label::Restart), 258, 18, WHITE);
     }
+#endif
 }
 enum class Screen { Title, Help, Playing };
 static void renderMenu(const Ui &ui, const Audio &audio, Screen screen, int selected) {
@@ -217,7 +219,7 @@ struct App {
     const std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now();
     double firstFrameMs = 0;
     bool smoke = false, noAudio = false, english = false, debug = false, quit = false;
-    int frames = 0, selected = 0;
+    int frames = 0, selected = 0, stageNumber = 1;
     unsigned checks = 0;
     std::string error;
     Game g;
@@ -262,19 +264,19 @@ struct App {
         const Screen previousScreen = screen;
         if (webNavigation >= 0) {
             if (webNavigation > 0) {
-                Stage source = defaultStage();
-                if (webNavigation == 2) {
-                    source.tiles.fill(Tile::Wall);
-                    for (int y=1;y<12;++y) for(int x=1;x<10;++x) {
-                        auto &tile=source.tiles[y*MapW+x];
-                        tile=(x%2==0&&y%2==0)?Tile::Wall:Tile::Floor;
-                        if(tile==Tile::Floor&&x+y>4&&x!=9&&(x*7+y*3)%5<2)tile=Tile::Block;
-                    }
-                    source.tiles[11*MapW+9]=Tile::Exit;
-                    for(int i=0;i<3;++i){source.enemies[i].x=9.5f;source.enemies[i].y=3.5f+i*3;}
+                const bool advance = webNavigation == 3 && g.phase == Phase::Won && stageNumber < 10;
+                if (webNavigation == 3 && !advance) { webNavigation=-1; return; }
+                stageNumber = advance ? stageNumber+1 : 1;
+                Stage source;
+                if (!loadStage(TextFormat("/data/mobile/stage%02d.txt",stageNumber),source,error)) {
+                    webNavigation=-1; return;
                 }
-                g=Game(source,g.config);
-                SetWindowSize(webNavigation==2?384:640,432);
+                GameConfig cfg;
+                const float speeds[10]={.8f,1.f,1.1f,1.2f,1.35f,1.5f,1.65f,1.8f,2.f,2.2f};
+                cfg.enemySpeed=speeds[stageNumber-1];
+                cfg.itemDropRate=.35f;
+                g=Game(source,cfg);
+                SetWindowSize(384,432);
                 screen = Screen::Playing;
             }
             else screen = Screen::Title;
@@ -304,15 +306,6 @@ struct App {
                     int(IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S) || touchHeld[3]) -
                         int(IsKeyDown(KEY_UP) || IsKeyDown(KEY_W) || touchHeld[2]),
                     IsKeyPressed(KEY_SPACE) || touchPressed[4]};
-        const int pressedDx = int(IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D) || touchPressed[1]) -
-                              int(IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A) || touchPressed[0]);
-        const int pressedDy = int(IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S) || touchPressed[3]) -
-                              int(IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W) || touchPressed[2]);
-        if (pressedDx || pressedDy) {
-            input.dx = pressedDx;
-            input.dy = pressedDy;
-            input.movePressed = true;
-        }
         // Scripted checks use the same screen handlers as real keyboard input.
         if (smoke) {
             up = frames == 18;
@@ -380,8 +373,9 @@ struct App {
             EM_ASM({ if (Module.onWebScreen) Module.onWebScreen($0); },
                    screen == Screen::Playing ? 1 : 0);
         if (screen == Screen::Playing && frames % 10 == 0)
-            EM_ASM({ if(Module.onHud)Module.onHud($0,$1,$2,$3,$4); },
-                   g.activeBombs(),g.player.maxBombs,g.player.range,g.aliveEnemies(),audio.muted);
+            EM_ASM({ if(Module.onHud)Module.onHud($0,$1,$2,$3,$4,$5,$6); },
+                   g.activeBombs(),g.player.maxBombs,g.player.range,g.aliveEnemies(),audio.muted,
+                   stageNumber,int(g.phase));
 #endif
         audio.music(screen != Screen::Playing   ? BackgroundMusic::Title
                     : g.phase == Phase::Playing ? BackgroundMusic::Gameplay
