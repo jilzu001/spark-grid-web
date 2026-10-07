@@ -19,6 +19,8 @@ struct Actor {
 struct Player : Actor {
     int maxBombs = 1, range = 2;
     float speed = 3.4f;
+    int targetX = 1, targetY = 1, queuedDx = 0, queuedDy = 0;
+    bool moving = false;
 };
 struct Bomb {
     int x = 0, y = 0, range = 2;
@@ -34,6 +36,7 @@ struct Enemy : Actor {
 struct Input {
     int dx = 0, dy = 0;
     bool bomb = false;
+    bool movePressed = false;
 };
 // One update's audio notifications; game rules still have no audio dependency.
 struct GameEvents {
@@ -76,3 +79,4 @@ struct Game {
     void moveEnemy(Enemy &enemy, float dt);
     void movePlayer(int dx, int dy, float dt);
 };
+

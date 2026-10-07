@@ -139,11 +139,28 @@ int main(int argc, char **argv) {
         patrol.bombs[0].active = false;
         tick(patrol, .25f);
         check(patrol.stage.enemies[0].x > 5.9f, "enemy resumes when passage reopens");
-        Game corner(arena());
-        corner.stage.tiles[2 * MapW + 2] = Tile::Wall;
-        corner.player.x = 1.81f;
-        tick(corner, .4f, {0, 1, false});
-        check(corner.player.y > 2 && corner.player.x < 1.81f, "player corner alignment correction");
+        Game grid(arena());
+        grid.update(.01f, {1, 0, false, true});
+        check(grid.player.x > 1.5f && grid.player.x < 2.5f, "tile step is animated");
+        tick(grid, .8f);
+        check(grid.player.x == 2.5f && grid.player.y == 1.5f && !grid.player.moving,
+              "tap and release completes exactly one tile");
+        tick(grid, .8f);
+        check(grid.player.x == 2.5f, "released movement does not repeat");
+        grid.update(.01f, {1, 0, false, true});
+        grid.update(.01f, {0, 1, false, true});
+        tick(grid, .8f);
+        check(grid.player.x == 3.5f && grid.player.y == 2.5f,
+              "queued turn starts only at tile centre");
+        grid.stage.tiles[3 * MapW + 3] = Tile::Block;
+        tick(grid, .4f, {0, 1, false});
+        check(grid.player.y == 2.5f, "blocked tile never starts partial movement");
+        tick(grid, .4f, {1, 0, false});
+        tick(grid, .4f);
+        check(grid.player.x == 5.5f, "held direction repeats complete tiles");
+        grid.restart();
+        check(grid.player.x == 1.5f && !grid.player.moving && grid.player.queuedDy == 0,
+              "restart clears tile movement and queued turn");
         Game cues(arena());
         cues.update(.016f, {0, 0, true});
         check(cues.events.placed == 1, "placement audio event");
@@ -179,3 +196,4 @@ int main(int argc, char **argv) {
         return 1;
     }
 }
+

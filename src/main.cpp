@@ -262,6 +262,15 @@ struct App {
                     int(IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S) || touchHeld[3]) -
                         int(IsKeyDown(KEY_UP) || IsKeyDown(KEY_W) || touchHeld[2]),
                     IsKeyPressed(KEY_SPACE) || touchPressed[4]};
+        const int pressedDx = int(IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D) || touchPressed[1]) -
+                              int(IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A) || touchPressed[0]);
+        const int pressedDy = int(IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S) || touchPressed[3]) -
+                              int(IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W) || touchPressed[2]);
+        if (pressedDx || pressedDy) {
+            input.dx = pressedDx;
+            input.dy = pressedDy;
+            input.movePressed = true;
+        }
         // Scripted checks use the same screen handlers as real keyboard input.
         if (smoke) {
             up = frames == 18;
