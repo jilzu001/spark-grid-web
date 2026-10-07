@@ -33,7 +33,7 @@ function showScreen(screen){
   say('');window.scrollTo(0,0);
   if(screen==='playing')gameCanvas.focus();
 }
-document.getElementById('start-game').addEventListener('click',()=>{invoke('WebAudioStart');invoke('WebNavigate',[1]);});
+document.getElementById('start-game').addEventListener('click',()=>{invoke('WebAudioStart');invoke('WebNavigate',[2]);});
 document.getElementById('open-characters').addEventListener('click',()=>showScreen('character'));
 document.getElementById('open-help').addEventListener('click',()=>showScreen('help'));
 document.querySelectorAll('[data-back]').forEach(button=>button.addEventListener('click',()=>showScreen('title')));
@@ -102,6 +102,11 @@ var Module={
     }));
   },
   onWebScreen(screen){showScreen(screen===1?'playing':'title');},
+  onHud(bombs,maxBombs,range,enemies,muted){
+    document.getElementById('hud').textContent='폭탄 '+bombs+'/'+maxBombs+' · 범위 '+range+' · 적 '+enemies;
+    document.getElementById('toggle-sound').textContent=muted?'소리: 꺼짐':'소리: 켜짐';
+    gameCanvas.style.setProperty('--game-ratio',gameCanvas.width/gameCanvas.height);
+  },
   onAbort(){runtimeReady=false;say('게임을 불러오지 못했습니다. 새로고침하거나 연결을 확인하세요.');},
   onGameClosed(){releaseAll();runtimeReady=false;document.querySelectorAll('[data-action]').forEach(button=>button.disabled=true);say('게임을 종료했습니다. 다시 실행하려면 새로고침하세요.');}
 };
@@ -171,4 +176,5 @@ document.addEventListener('change',async event=>{
   }catch(error){if(generation===photoGeneration[actor])say(error.message);}
   finally{input.value='';}
 });
+
 

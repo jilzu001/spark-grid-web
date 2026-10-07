@@ -37,7 +37,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void WebAction(int action, int down) {
 }
 extern "C" EMSCRIPTEN_KEEPALIVE void WebPhotoEditing(int enabled) { photoEditing = enabled != 0; }
 extern "C" EMSCRIPTEN_KEEPALIVE void WebNavigate(int destination) {
-    if (destination == 0 || destination == 1) webNavigation = destination;
+    if (destination >= 0 && destination <= 2) webNavigation = destination;
 }
 extern "C" EMSCRIPTEN_KEEPALIVE int ApplyPhotoSkin(int actor) {
     if (!browserSkins || actor < 0 || actor >= Skins::SlotCount)
@@ -49,12 +49,19 @@ extern "C" EMSCRIPTEN_KEEPALIVE int ApplyPhotoSkin(int actor) {
 
 static void render(const Game &g, const Ui &ui, const Skins &skins, bool debug,
                    const char *notice) {
-    const int t = g.config.tileSize, ox = 16, oy = 40;
+    const int t = g.config.tileSize, ox = 16;
+#ifdef __EMSCRIPTEN__
+    const int oy = 8;
+#else
+    const int oy = 40;
+#endif
     ClearBackground({14, 20, 31, 255});
+#ifndef __EMSCRIPTEN__
     ui.draw(ui.label(Label::Title), 16, 8, 24, {104, 226, 214, 255});
     ui.draw(TextFormat(ui.label(Label::Hud), g.activeBombs(), g.player.maxBombs, g.player.range,
                        g.aliveEnemies()),
             230, 18, 16, LIGHTGRAY);
+#endif
     for (int y = 0; y < MapH; ++y)
         for (int x = 0; x < MapW; ++x) {
             int k = y * MapW + x;
@@ -131,7 +138,9 @@ static void render(const Game &g, const Ui &ui, const Skins &skins, bool debug,
             DrawLine(px + 9, py - 9, px - 9, py + 9, RED);
         }
     }
+#ifndef __EMSCRIPTEN__
     ui.draw(ui.label(Label::Footer), 16, 461, ui.korean ? 14 : 12, GRAY);
+#endif
     if (notice[0])
         ui.draw(notice, 24, 436, 12, ORANGE);
     if (debug) {
@@ -158,7 +167,7 @@ static void render(const Game &g, const Ui &ui, const Skins &skins, bool debug,
         }
     }
     if (g.phase != Phase::Playing) {
-        DrawRectangle(120, 188, 400, 112, {11, 16, 24, 240});
+        DrawRectangle(20, 188, GetScreenWidth()-40, 112, {11, 16, 24, 240});
         ui.center(ui.label(g.phase == Phase::Dead ? Label::Dead : Label::Won), 207, 30,
                   g.phase == Phase::Dead ? Color{255, 130, 120, 255} : LIME);
         ui.center(ui.label(Label::Restart), 258, 18, WHITE);
@@ -227,7 +236,11 @@ struct App {
             stage = defaultStage();
         g = Game(stage);
         SetTraceLogLevel(LOG_WARNING);
+#ifdef __EMSCRIPTEN__
+        InitWindow(640, 432, "Spark Grid - native action puzzle");
+#else
         InitWindow(640, 480, "Spark Grid - native action puzzle");
+#endif
         if (!IsWindowReady())
             return false;
         SetExitKey(KEY_NULL);
@@ -248,7 +261,22 @@ struct App {
 #ifdef __EMSCRIPTEN__
         const Screen previousScreen = screen;
         if (webNavigation >= 0) {
-            if (webNavigation == 1) { g.restart(); screen = Screen::Playing; }
+            if (webNavigation > 0) {
+                Stage source = defaultStage();
+                if (webNavigation == 2) {
+                    source.tiles.fill(Tile::Wall);
+                    for (int y=1;y<12;++y) for(int x=1;x<10;++x) {
+                        auto &tile=source.tiles[y*MapW+x];
+                        tile=(x%2==0&&y%2==0)?Tile::Wall:Tile::Floor;
+                        if(tile==Tile::Floor&&x+y>4&&x!=9&&(x*7+y*3)%5<2)tile=Tile::Block;
+                    }
+                    source.tiles[11*MapW+9]=Tile::Exit;
+                    for(int i=0;i<3;++i){source.enemies[i].x=9.5f;source.enemies[i].y=3.5f+i*3;}
+                }
+                g=Game(source,g.config);
+                SetWindowSize(webNavigation==2?384:640,432);
+                screen = Screen::Playing;
+            }
             else screen = Screen::Title;
             photoEditing = false;
             webNavigation = -1;
@@ -351,6 +379,9 @@ struct App {
         if (screen != previousScreen)
             EM_ASM({ if (Module.onWebScreen) Module.onWebScreen($0); },
                    screen == Screen::Playing ? 1 : 0);
+        if (screen == Screen::Playing && frames % 10 == 0)
+            EM_ASM({ if(Module.onHud)Module.onHud($0,$1,$2,$3,$4); },
+                   g.activeBombs(),g.player.maxBombs,g.player.range,g.aliveEnemies(),audio.muted);
 #endif
         audio.music(screen != Screen::Playing   ? BackgroundMusic::Title
                     : g.phase == Phase::Playing ? BackgroundMusic::Gameplay
